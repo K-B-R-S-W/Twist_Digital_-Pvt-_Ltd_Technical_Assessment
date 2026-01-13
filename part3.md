@@ -1,16 +1,11 @@
-# Part 3: Zero-Shot Manipulation Detection
-
-## The Challenge
-**PM's Curveball:** "We have zero labeled data for manipulation detection. Our annotators won't be ready for 3 months. But we need something deployed in 2 weeks. What can you do?"
-
+# Part 3: Zero Shot Manipulation Detection
 ---
 
 ## Approach 1: Weak Supervision with Snorkel + SetFit Hybrid
-### *The "Production-Ready Data Multiplication Approach"*
 
-### 1. The Technique (200 words)
+### 1. The Technique
 
-We combine **programmatic weak supervision** (Snorkel framework) with **few-shot contrastive learning** (SetFit) to create a self-improving manipulation detector that requires zero manual labels.
+We combine **programmatic weak supervision** (Snorkel framework) with **few-shot contrastive learning** (SetFit) to create a self improving manipulation detector that requires zero manual labels.
 
 **Stage 1 - Weak Supervision (Snorkel):**
 
@@ -37,7 +32,7 @@ def lf_sentiment_volatility(review):
     """Detect emotional manipulation via sentiment swings"""
     sentences = sent_tokenize(review.text)
     sentiments = [vader.polarity_scores(s)['compound'] for s in sentences]
-    if len(sentiments) >= 3 and np.std(sentiments) > 0.6:  # High volatility
+    if len(sentiments) >= 3 and np.std(sentiments) > 0.6:
         return MANIPULATIVE
     return ABSTAIN
 
@@ -45,7 +40,7 @@ def lf_sentiment_volatility(review):
 def lf_caps_excess(review):
     """Detect shouting (excessive capitalization)"""
     caps_ratio = sum(1 for c in review.text if c.isupper()) / max(len(review.text), 1)
-    if caps_ratio > 0.30:  # >30% uppercase
+    if caps_ratio > 0.30: 
         return MANIPULATIVE
     return ABSTAIN
 
@@ -54,7 +49,7 @@ def lf_exclamation_density(review):
     """Detect excessive excitement markers"""
     exclamations = review.text.count('!')
     words = len(review.text.split())
-    if words > 0 and (exclamations / words) > 0.03:  # >3 per 100 words
+    if words > 0 and (exclamations / words) > 0.03: 
         return MANIPULATIVE
     return ABSTAIN
 
@@ -64,7 +59,7 @@ def lf_superlative_overload(review):
     superlatives = ['amazing', 'perfect', 'incredible', 'life-changing', 
                     'miracle', 'best ever', 'unbelievable', 'revolutionary']
     count = sum(review.text.lower().count(word) for word in superlatives)
-    if count >= 3:  # 3+ extreme adjectives
+    if count >= 3:  
         return MANIPULATIVE
     return ABSTAIN
 
@@ -80,20 +75,20 @@ def lf_social_proof_spam(review):
 
 **Label Aggregation:** Snorkel's generative model analyzes agreement patterns between these LFs (without any ground truth labels) and produces probabilistic training labels for the entire dataset. For example: "Review #523: 0.87 probability manipulative (agreed by LF_SCARCITY, LF_CAPS_EXCESS, and LF_EXCLAMATION_DENSITY)".
 
-**Stage 2 - Few-Shot Fine-Tuning (SetFit):**
+**Stage 2 - Few Shot Fine Tuning (SetFit):**
 
-We use Snorkel's probabilistic labels to fine-tune a lightweight Sentence Transformer model (SetFit framework):
+We use Snorkel's probabilistic labels to fine tune a lightweight Sentence Transformer model (SetFit framework):
 
 1. **Contrastive Pair Generation:** SetFit creates positive/negative pairs from weakly labeled reviews
-2. **Embedding Fine-tuning:** Train a small Sentence Transformer (e.g., `all-MiniLM-L6-v2`, 23MB) to separate manipulative vs. legitimate reviews in embedding space
+2. **Embedding Fine tuning:** Train a small Sentence Transformer (e.g., `all-MiniLM-L6-v2`, 23MB) to separate manipulative vs. legitimate reviews in embedding space
 3. **Classification Head:** Add a simple logistic regression classifier on top
 
-**Stage 3 - Self-Improvement Loop:**
+**Stage 3 - Self Improvement Loop:**
 
 When users flag false positives/negatives (thumbs down), we:
 1. Add corrections to a "gold standard" validation set
 2. Weekly A/B test different LF threshold configurations
-3. Automatically deploy the best-performing configuration
+3. Automatically deploy the best performing configuration
 4. Retrain SetFit monthly with accumulated feedback as hard negatives
 
 ---
@@ -101,19 +96,19 @@ When users flag false positives/negatives (thumbs down), we:
 ### 2. Pros & Cons
 
 **Pros:**
-- ✅ **Zero API costs** - Snorkel (open-source Python) + SetFit (local HuggingFace models) = $0
-- ✅ **Generates 10,000+ training labels automatically** - From just 15-20 LFs in <1 hour of development
-- ✅ **Highly interpretable** - Output includes: "Flagged by LF_SCARCITY (confidence: 0.92) and LF_CAPS_EXCESS (confidence: 0.78)"
-- ✅ **Self-improving via user feedback** - Corrections automatically refine LF weights through Snorkel's statistical modeling
-- ✅ **Production-grade speed** - SetFit inference: ~15ms per review (vs. 100ms for NLI cross-encoders)
-- ✅ **Robust to domain shift** - Add category-specific LFs in minutes (e.g., `lf_fake_sizing` for fashion reviews)
-- ✅ **State-of-the-art academic backing** - Snorkel has been deployed at Google, Intel, DARPA, and Stanford Medicine
-- ✅ **No expertise required** - Writing LFs is intuitive (just Python + regex)
+-  **Zero API costs** - Snorkel (open source Python) + SetFit (local HuggingFace models) = $0
+-  **Generates 10,000+ training labels automatically** - From just 15-20 LFs in <1 hour of development
+-  **Highly interpretable** - Output includes: "Flagged by LF_SCARCITY (confidence: 0.92) and LF_CAPS_EXCESS (confidence: 0.78)"
+-  **Self improving via user feedback** - Corrections automatically refine LF weights through Snorkel's statistical modeling
+-  **Production grade speed** - SetFit inference: ~15ms per review (vs. 100ms for NLI cross encoders)
+-  **Robust to domain shift** - Add category specific LFs in minutes (e.g., `lf_fake_sizing` for fashion reviews)
+-  **State of the art academic backing** - Snorkel has been deployed at Google, Intel, DARPA, and Stanford Medicine
+-  **No expertise required** - Writing LFs is intuitive (just Python + regex)
 
 **Cons:**
-- ❌ **Initial LF development time** - Requires 2-3 days to design and test quality labeling functions
-- ❌ **Threshold tuning needed** - Requires small validation set (~100 reviews) to calibrate LF confidence scores
-- ❌ **Misses subtle manipulation** - Purely syntactic LFs won't catch sophisticated psychological tactics that lack explicit linguistic markers (e.g., "I'd secure one soon" = indirect urgency)
+-  **Initial LF development time** - Requires 2-3 days to design and test quality labeling functions
+-  **Threshold tuning needed** - Requires small validation set (~100 reviews) to calibrate LF confidence scores
+-  **Misses subtle manipulation** - Purely syntactic LFs won't catch sophisticated psychological tactics that lack explicit linguistic markers (e.g., "I'd secure one soon" = indirect urgency)
 
 ---
 
@@ -129,15 +124,15 @@ When users flag false positives/negatives (thumbs down), we:
 - **Recall: 0.72-0.78** - Model learns implicit patterns not captured by rules
 - **F1 Score: 0.75-0.80** (+7% improvement)
 
-**Month 1 (+ User feedback integration):**
+**Post-Deployment (Month 1+ with user feedback - continuous improvement):**
 - **Precision: 0.82-0.87**
 - **Recall: 0.76-0.82**
-- **F1 Score: 0.80-0.84** (+5% improvement)
+- **F1 Score: 0.80-0.84** (+5% improvement from continuous learning)
 
 **Reasoning:**
-- Academic studies show Snorkel achieves **132% average improvements** over heuristic-only baselines (Ratner et al. 2017)
-- SetFit with pseudo-labeled data typically achieves **85-90%** of fully supervised model performance (Tunstall et al. 2022)
-- Our hybrid approach: Snorkel generates ~10k "pseudo-examples" → SetFit treats as real training data → Expected **85% of supervised baseline ≈ F1 0.80**
+- Academic studies show Snorkel achieves **132% average improvements** over heuristic only baselines (Ratner et al. 2017)
+- SetFit with pseudo labeled data typically achieves **85-90%** of fully supervised model performance (Tunstall et al. 2022)
+- Our hybrid approach: Snorkel generates ~10k "pseudo examples" → SetFit treats as real training data → Expected **85% of supervised baseline ≈ F1 0.80**
 
 **Performance by Manipulation Type:**
 
@@ -162,18 +157,18 @@ When users flag false positives/negatives (thumbs down), we:
 2. **Synthetic Negative Set Test:**
    - Use 50 known legitimate reviews from Part 2's dataset
    - Target: **False Positive Rate <15%** (flag fewer than 8 reviews)
-   - Method: Ensure conservative thresholds don't over-trigger
+   - Method: Ensure conservative thresholds don't over trigger
 
 **Phase 2 - SetFit Generalization Test (Week 2):**
 
-3. **Hold-out Test Set:**
-   - Reserve 200 reviews (100 manipulative, 100 legitimate) hand-labeled by 2 independent annotators
-   - Ensure inter-annotator reliability: Cohen's Kappa >0.75
+3. **Hold out Test Set:**
+   - Reserve 200 reviews (100 manipulative, 100 legitimate) hand labeled by 2 independent annotators
+   - Ensure inter annotator reliability: Cohen's Kappa >0.75
    - Use as final evaluation benchmark
 
 4. **Ablation Study:** Compare three approaches on the hold-out set:
-   - **Snorkel-only:** Majority vote of LFs
-   - **SetFit-only:** Trained on Snorkel's probabilistic labels
+   - **Snorkel only:** Majority vote of LFs
+   - **SetFit only:** Trained on Snorkel's probabilistic labels
    - **Hybrid ensemble:** Weighted average (0.3 × Snorkel + 0.7 × SetFit)
    - **Expected:** Hybrid beats both individual approaches by 5-8% F1
 
@@ -181,7 +176,7 @@ When users flag false positives/negatives (thumbs down), we:
 
 5. **Deploy to 10% of Live Traffic:**
    - **Metric 1:** User engagement - Track "Was this helpful?" thumbs up/down on flagged reviews
-   - **Metric 2:** Business impact - Compare purchase conversion rates on flagged vs. non-flagged products
+   - **Metric 2:** Business impact - Compare purchase conversion rates on flagged vs. non flagged products
    - **Hypothesis:** Flagged reviews receive **25% more "helpful" votes** (users appreciate fraud warnings)
 
 **Phase 4 - Adversarial Red Team Testing (Week 4):**
@@ -195,13 +190,13 @@ When users flag false positives/negatives (thumbs down), we:
    - Target: <20% evade detection
    - For each evasion, iterate by adding targeted LF (e.g., `lf_subtle_urgency` with semantic patterns like "recommend soon" + future tense verbs)
 
-**Phase 5 - Long-term Self-Improvement Validation (Month 2+):**
+**Phase 5 - Long term Self Improvement Validation (Post Deployment - Month 1+):**
 
 8. **User Feedback Integration:**
    - Collect 500+ user corrections (thumbs down on false positives/negatives)
    - Retrain SetFit monthly with corrections as "hard negatives"
    - Plot F1 trajectory over time
-   - **Expected:** +2-3% F1 improvement per month for first 3 months, then plateau at 0.83-0.85
+   - **Expected:** +2-3% F1 improvement per month for first 3 months after deployment, then plateau at 0.83-0.85
 
 9. **LF Performance Monitoring:**
    - Track per-LF precision/recall weekly
@@ -210,42 +205,36 @@ When users flag false positives/negatives (thumbs down), we:
 
 ---
 
-## Approach 2: Zero-Shot NLI with Multi-Hypothesis Inference
-### *The "Intelligent Bootstrapping Approach"*
+## Approach 2: Zero Shot NLI with Multi Hypothesis Inference
 
-### 1. The Technique (200 words)
+### 1. The Technique
 
-We repurpose the **existing RoBERTa-Large-MNLI model from Part 2** as a zero-shot manipulation classifier by framing detection as a Natural Language Inference (NLI) problem with multiple targeted hypotheses.
+We repurpose the **existing RoBERTa Large MNLI model from Part 2** as a zero shot manipulation classifier by framing detection as a Natural Language Inference (NLI) problem with multiple targeted hypotheses.
 
-**Step 1 - Multi-Hypothesis Template Library:**
+**Step 1 - Multi Hypothesis Template Library:**
 
 Instead of a single generic hypothesis, we create a **battery of 10 specialized hypotheses** targeting distinct manipulation tactics:
 
 ```python
 MANIPULATION_HYPOTHESES = [
-    # Scarcity & Urgency
     "This review creates false urgency or artificial scarcity.",
     "This review pressures readers to act immediately without justification.",
     
-    # Emotional Exploitation
     "This review uses extreme emotional language to manipulate readers.",
     "This review exploits fear or FOMO (fear of missing out).",
     
-    # Social Proof Spam
     "This review makes unverifiable claims about popularity or consensus.",
     "This review falsely claims widespread adoption or bestseller status.",
     
-    # Exaggeration & Fabrication
     "This review uses excessive superlatives without substantiation.",
     "This review contains impossibly perfect claims that seem fabricated.",
     
-    # Fake Authenticity Markers
     "This review tries too hard to sound genuine and authentic.",
     "This review contains markers of paid or incentivized content."
 ]
 ```
 
-**Step 2 - Multi-Hypothesis NLI Inference:**
+**Step 2 - Multi Hypothesis NLI Inference:**
 
 For each review, we run NLI inference against all 10 hypotheses in parallel:
 
@@ -253,35 +242,33 @@ For each review, we run NLI inference against all 10 hypotheses in parallel:
 entailment_scores = []
 
 for hypothesis in MANIPULATION_HYPOTHESES:
-    # Run NLI cross-encoder (same model from Part 2)
+    # Run NLI cross encoder (same model)
     scores = nli_model.predict([(review_text, hypothesis)])
     
-    # Extract entailment probability
-    # scores[0] = [contradiction, entailment, neutral]
-    entailment_prob = softmax(scores[0])[1]  # Index 1 = entailment
+    # Extract entailment probability (scores[0] = [contradiction, entailment, neutral])
+    entailment_prob = softmax(scores[0])[1]  
     entailment_scores.append(entailment_prob)
 ```
 
-**Step 3 - Aggregation via Max-Voting:**
+**Step 3 - Aggregation via Max Voting:**
 
 ```python
 # If ANY hypothesis shows strong entailment, flag as manipulation
 max_entailment = max(entailment_scores)
-is_manipulative = max_entailment > 0.75  # Threshold tuned on validation set
+is_manipulative = max_entailment > 0.75  
 
-# Confidence score
 confidence = max_entailment
 
-# Explanation: which hypothesis triggered
+# which hypothesis triggered
 trigger_idx = np.argmax(entailment_scores)
 explanation = f"Flagged: entailment with '{MANIPULATION_HYPOTHESES[trigger_idx]}' (confidence: {max_entailment:.2f})"
 ```
 
 **Step 4 - Optional Distillation for Speed (Week 2):**
 
-Once validated, we can distill the slow NLI cross-encoder into a fast **DistilBERT classifier**:
+Once validated, we can distill the slow NLI cross encoder into a fast **DistilBERT classifier**:
 
-1. Use NLI predictions as pseudo-labels for 10,000 unlabeled reviews
+1. Use NLI predictions as pseudo labels for 10,000 unlabeled reviews
 2. Train DistilBERT classifier on these labels
 3. **Result:** 6-7x faster inference (~15ms vs. 100ms), ~95% accuracy retention
 
@@ -290,23 +277,23 @@ Once validated, we can distill the slow NLI cross-encoder into a fast **DistilBE
 ### 2. Pros & Cons
 
 **Pros:**
-- ✅ **Zero training required** - Uses Part 2's existing NLI model directly (no additional setup)
-- ✅ **No API costs** - Local RoBERTa-Large-MNLI inference only
-- ✅ **Semantic understanding** - Catches subtle manipulation through logical reasoning (e.g., "I'd secure one soon" detected as indirect urgency)
-- ✅ **Highly interpretable** - "Flagged because: entailment with hypothesis 'creates false urgency' (confidence: 0.87)"
-- ✅ **Flexible & extensible** - Add new manipulation types by writing new hypotheses (no retraining needed)
-- ✅ **Improves with user feedback** - User corrections refine hypothesis library + can retrain distilled model
-- ✅ **Fast deployment** - Can go live in 2-3 days (hypothesis design + threshold tuning)
-- ✅ **Proven academic approach** - Zero-shot NLI classification achieves 85-92% accuracy on unseen labels
+-  **Zero training required** - Uses Part 2's existing NLI model directly (no additional setup)
+-  **No API costs** - Local RoBERTa Large MNLI inference only
+-  **Semantic understanding** - Catches subtle manipulation through logical reasoning (e.g., "I'd secure one soon" detected as indirect urgency)
+-  **Highly interpretable** - "Flagged because: entailment with hypothesis 'creates false urgency' (confidence: 0.87)"
+-  **Flexible & extensible** - Add new manipulation types by writing new hypotheses (no retraining needed)
+-  **Improves with user feedback** - User corrections refine hypothesis library + can retrain distilled model
+-  **Fast deployment** - Can go live in 2-3 days (hypothesis design + threshold tuning)
+-  **Proven academic approach** - Zero shot NLI classification achieves 85-92% accuracy on unseen labels
 
 **Cons:**
-- ❌ **Initial inference latency** - Cross-encoder is slow (~100ms per review × 10 hypotheses = 1 second)
+-  **Initial inference latency** - Cross encoder is slow (~100ms per review × 10 hypotheses = 1 second)
   - **Mitigation Option 1:** Parallel GPU processing → 100ms total
   - **Mitigation Option 2:** Distill to DistilBERT after validation → 15ms
-- ❌ **Hypothesis design sensitivity** - Poorly worded hypotheses lead to false positives/negatives
+-  **Hypothesis design sensitivity** - Poorly worded hypotheses lead to false positives/negatives
   - **Mitigation:** A/B test 5 paraphrase variations of each hypothesis on small validation set, pick best performers
-- ❌ **May miss statistical patterns** - NLI struggles with non-semantic manipulation (e.g., excessive punctuation "!!!!!!")
-  - **Mitigation:** Hybrid approach with simple regex post-filters (e.g., flag if >5 exclamation marks regardless of NLI score)
+-  **May miss statistical patterns** - NLI struggles with non semantic manipulation (e.g., excessive punctuation "!!!!!!")
+  - **Mitigation:** Hybrid approach with simple regex post filters (e.g., flag if >5 exclamation marks regardless of NLI score)
 
 ---
 
@@ -318,22 +305,22 @@ Once validated, we can distill the slow NLI cross-encoder into a fast **DistilBE
 - **F1 Score: 0.72-0.78**
 
 **Week 2 (+ Hypothesis optimization via A/B testing):**
-- Test 50 hypothesis paraphrase variations on 200-sample validation set
+- Test 50 hypothesis paraphrase variations on 200 sample validation set
 - Select best 10 performers based on individual F1 scores
 - **F1 Score: 0.76-0.82** (+5% improvement)
 
-**Week 3 (+ DistilBERT distillation for speed):**
-- Train DistilBERT on 10,000 NLI-labeled reviews
+**Post Deployment (Week 3+ with distillation for speed):**
+- Train DistilBERT on 10,000 NLI labeled reviews
 - Model learns to generalize beyond explicit hypothesis patterns
 - **Precision: 0.78-0.84**
 - **Recall: 0.74-0.80**
 - **F1 Score: 0.76-0.82** (comparable performance, 6-7x faster)
 
 **Reasoning:**
-- Zero-shot NLI transformers achieve **85-95% accuracy** out-of-box on classification tasks (Yin et al. 2019)
-- Multi-hypothesis approach adds robustness: if one hypothesis fails, 9 others compensate → Expected +5-10% over single-hypothesis baseline
+- Zero shot NLI transformers achieve **85-95% accuracy** out of box on classification tasks (Yin et al. 2019)
+- Multi hypothesis approach adds robustness: if one hypothesis fails, 9 others compensate → Expected +5-10% over single hypothesis baseline
 - Distillation typically retains **90-95%** of teacher model performance (Hinton et al. 2015)
-- **Combined estimate:** 0.85 (zero-shot baseline) × 1.05 (multi-hypothesis boost) × 0.95 (distillation retention) ≈ **F1 0.78-0.82**
+- **Combined estimate:** 0.85 (zero shot baseline) × 1.05 (multi hypothesis boost) × 0.95 (distillation retention) ≈ **F1 0.78-0.82**
 
 **Performance by Manipulation Type:**
 
@@ -350,13 +337,13 @@ Once validated, we can distill the slow NLI cross-encoder into a fast **DistilBE
 
 **Phase 1 - Hypothesis Quality Assessment (Day 2):**
 
-1. **Single-Hypothesis Baseline Test:**
+1. **Single Hypothesis Baseline Test:**
    - Test each of the 10 hypotheses individually on 100 known manipulation examples
    - Rank hypotheses by precision and recall
    - **Action:** Drop bottom 3 performers (likely poorly worded hypotheses)
 
 2. **Hypothesis Refinement via Paraphrasing:**
-   - For each low-performing hypothesis (F1 <0.60), generate 5 paraphrase alternatives using GPT-4:
+   - For each low performing hypothesis (F1 <0.60), generate 5 paraphrase alternatives using GPT-4:
    
    ```
    Original (F1=0.58): "This review uses emotional manipulation."
@@ -371,59 +358,59 @@ Once validated, we can distill the slow NLI cross-encoder into a fast **DistilBE
 **Phase 2 - Threshold Calibration (Week 1):**
 
 3. **ROC Curve Analysis:**
-   - On 200-sample validation set, test entailment thresholds: [0.50, 0.60, 0.70, 0.75, 0.80, 0.85, 0.90]
-   - Plot precision-recall curve
+   - On 200 sample validation set, test entailment thresholds: [0.50, 0.60, 0.70, 0.75, 0.80, 0.85, 0.90]
+   - Plot precision recall curve
    - **Goal:** Find optimal threshold that maximizes F1 (likely ~0.75)
 
 4. **Per-Hypothesis Threshold Tuning:**
    - Some hypotheses may need different sensitivity levels:
      - "False urgency detection": threshold 0.70 (more sensitive - catch subtle urgency)
      - "Unverifiable claims": threshold 0.80 (more conservative - avoid flagging subjective opinions)
-   - Fine-tune each hypothesis threshold independently
+   - Fine tune each hypothesis threshold independently
 
 **Phase 3 - Distillation Quality Check (Week 2):**
 
-5. **Teacher-Student Agreement Test:**
-   - Compare NLI cross-encoder (teacher) vs. DistilBERT (student) predictions on 1,000 held-out reviews
+5. **Teacher Student Agreement Test:**
+   - Compare NLI cross encoder (teacher) vs. DistilBERT (student) predictions on 1,000 held-out reviews
    - **Target:** >95% label agreement
    - **Method:** Cohen's Kappa coefficient
 
 6. **Latency Benchmark:**
    - Measure inference time on production hardware:
-     - NLI cross-encoder (10 hypotheses parallel): ~100ms
+     - NLI cross encoder (10 hypotheses parallel): ~100ms
      - DistilBERT distilled model: ~15ms
    - **Expected:** 6-7x speedup with <5% accuracy loss
 
 **Phase 4 - Live A/B Testing (Week 3):**
 
 7. **Deploy Both Variants to 5% Traffic Each:**
-   - **Variant A:** NLI multi-hypothesis (slower, potentially more accurate)
+   - **Variant A:** NLI multi hypothesis (slower, potentially more accurate)
    - **Variant B:** Distilled DistilBERT (faster, slightly less accurate)
    
 8. **Compare Metrics:**
    - User satisfaction: "Was this helpful?" votes on flagged reviews
-   - System latency: End-to-end processing time (target: <50ms)
+   - System latency: End to end processing time (target: <50ms)
    - **Decision Rule:** If DistilBERT F1 is within 3% of NLI and latency is <50ms, deploy DistilBERT permanently
 
 **Phase 5 - Adversarial Robustness Testing (Week 4):**
 
 9. **Red Team Evasion Attempts (50 samples):**
    - **Grammatical evasion:** "Consider securing your order soon" (grammatically correct but manipulative)
-   - **Implication-based manipulation:** "I wouldn't wait if I were you" (indirect urgency)
+   - **Implication based manipulation:** "I wouldn't wait if I were you" (indirect urgency)
    - **Subtle social proof:** "My friends all grabbed one" (unverifiable but not explicitly claiming consensus)
 
 10. **Hypothesis Expansion:**
     - For each successful evasion, design targeted hypothesis:
       - Add: "This review implies urgency through indirect suggestion or advice."
       - Add: "This review uses personal anecdotes to create false social proof."
-    - Re-test with expanded hypothesis library (now 12-15 hypotheses)
+    - Re test with expanded hypothesis library (now 12-15 hypotheses)
 
-**Phase 6 - Cross-Domain Generalization Test (Month 2):**
+**Phase 6 - Cross Domain Generalization Test (Post Deployment):**
 
 11. **Fashion Review Transfer Test:**
     - Apply model trained/validated on electronics reviews to fashion dataset
-    - **Target:** If accuracy drops <10%, hypotheses are domain-agnostic
-    - **If accuracy drops >15%:** Add fashion-specific hypotheses (e.g., "This review makes unverifiable claims about sizing or fit that seem fabricated")
+    - **Target:** If accuracy drops <10%, hypotheses are domain agnostic
+    - **If accuracy drops >15%:** Add fashion specific hypotheses (e.g., "This review makes unverifiable claims about sizing or fit that seem fabricated")
 
 ---
 
@@ -431,24 +418,24 @@ Once validated, we can distill the slow NLI cross-encoder into a fast **DistilBE
 
 | Criterion | Approach 1: Snorkel + SetFit | Approach 2: Zero-Shot NLI |
 |---|---|---|
-| **No API Costs** | ✅ $0 (local only) | ✅ $0 (local only) |
-| **Generates Training Data** | ✅✅ 10,000+ labels automatically | ✅ Can label unlimited for distillation |
-| **Interpretability** | ✅✅ Rule-level explanations + confidence | ✅ Hypothesis-level reasoning |
-| **User Feedback Loop** | ✅✅ Self-tuning LF weights + retraining | ✅ Hypothesis refinement + distillation retraining |
+| **No API Costs** |  $0 (local only) |  $0 (local only) |
+| **Generates Training Data** |  10,000+ labels automatically |  Can label unlimited for distillation |
+| **Interpretability** |  Rule level explanations + confidence |  Hypothesis level reasoning |
+| **User Feedback Loop** |  Self tuning LF weights + retraining |  Hypothesis refinement + distillation retraining |
 | **Deployment Speed** | 2-3 days (LF writing) | 2-3 days (hypothesis design) |
 | **Initial F1 (Week 1)** | 0.70-0.73 | 0.72-0.78 |
 | **Optimized F1 (Week 3)** | 0.75-0.80 | 0.76-0.82 |
 | **Production Latency** | 15ms (SetFit) | 15ms (distilled) / 100ms (NLI) |
-| **Handles Subtle Manipulation** | ⚠️ Limited (needs explicit LF) | ✅ Good (semantic reasoning) |
-| **Handles Statistical Patterns** | ✅ Excellent (regex + stats) | ⚠️ Limited (needs post-filters) |
-| **Domain Transfer** | ✅ Add domain LFs in minutes | ✅ Add domain hypotheses in minutes |
+| **Handles Subtle Manipulation** |  Limited (needs explicit LF) |  Good (semantic reasoning) |
+| **Handles Statistical Patterns** |  Excellent (regex + stats) |  Limited (needs post filters) |
+| **Domain Transfer** |  Add domain LFs in minutes |  Add domain hypotheses in minutes |
 | **Best Use Case** | Statistical + explicit manipulation | Semantic + implicit manipulation |
 
 ---
 
-## 🏆 Recommended Deployment Strategy: Hybrid Ensemble
+## My Deployment Strategy: Hybrid Ensemble
 
-### Why Use Both? They're Complementary!
+### We can Use Both They're Complementary!
 
 | Manipulation Type | Best Detected By |
 |---|---|
@@ -461,15 +448,17 @@ Once validated, we can distill the slow NLI cross-encoder into a fast **DistilBE
 
 ### Ensemble Implementation
 
-**Week 1-2: Fast Deployment**
+**Days 1-3: Fast Baseline Deployment**
 - Deploy **Approach 2 (NLI)** immediately (uses existing Part 2 model)
 - Achieve baseline F1 ~0.75 with zero training
+- **Status: Production ready**
 
-**Week 3-4: Accuracy Optimization**
-- Add **Approach 1 (Snorkel + SetFit)** in parallel
-- Develop 15-20 LFs targeting explicit patterns NLI misses
+**Days 4-10: Accuracy Optimization**
+- Develop **Approach 1 (Snorkel + SetFit)** in parallel
+- Write and test 15-20 LFs targeting explicit patterns NLI misses
+- **Status: Ready to enhance baseline**
 
-**Month 1+: Production Ensemble**
+**Days 11-14: Production Ensemble Deployment**
 ```python
 def ensemble_classify(review):
     # Get predictions from both models
@@ -492,9 +481,14 @@ def ensemble_classify(review):
 
 ### Expected Ensemble Performance
 
-**Precision: 0.85-0.90** - Two models must agree → fewer false positives  
-**Recall: 0.80-0.85** - If one model misses, the other compensates  
-**F1 Score: 0.82-0.87** - **5-7% better than individual models**
+**At 2 Week Deployment (Production Ready):**
+- **Precision: 0.85-0.90** - Two models must agree → fewer false positives  
+- **Recall: 0.80-0.85** - If one model misses, the other compensates  
+- **F1 Score: 0.82-0.87** - **5-7% better than individual models**
+
+**Post Deployment (Continuous Improvement):**
+- **Month 1:** F1 ~0.83-0.88 (with initial user feedback)
+- **Month 3:** F1 ~0.85-0.90 (mature system with accumulated learning)
 
 **Why the Ensemble Works:**
 - **Snorkel catches:** Explicit patterns (caps, punctuation, keywords)
@@ -504,46 +498,12 @@ def ensemble_classify(review):
 
 ---
 
-## Summary: Bonus Points Justification
-
-### ✅ No Expensive API Calls
-- **Approach 1:** $0 (Snorkel + SetFit are open-source, local inference)
-- **Approach 2:** $0 (Uses existing Part 2 NLI model, local inference)
-- **Ensemble:** $0 total operational cost
-
-### ✅ Methods That Generate Their Own Training Data
-- **Approach 1:** Generates 10,000+ probabilistic labels via Snorkel's label aggregation
-- **Approach 2:** Generates unlimited pseudo-labels via NLI inference for distillation
-- **Ensemble:** Combined, can label entire corpus for iterative improvement
-
-### ✅ Techniques That Provide Interpretable Outputs
-- **Approach 1:** "Flagged by LF_SCARCITY (0.92) and LF_CAPS_EXCESS (0.78) - Review contains 'Only 2 left' and 45% uppercase text"
-- **Approach 2:** "Flagged: entailment with 'creates false urgency' hypothesis (confidence: 0.87)"
-- **Ensemble:** Shows which signals from both approaches triggered, full transparency
-
-### ✅ Solutions That Could Improve Over Time with User Feedback
-- **Approach 1:** 
-  - User corrections automatically refine LF weights via Snorkel
-  - SetFit retraining with feedback as hard negatives
-  - Weekly A/B testing of new LF candidates
-- **Approach 2:**
-  - Hypothesis library expansion based on missed cases
-  - Distilled model retraining with user corrections
-  - Threshold auto-tuning on accumulating validation set
-- **Ensemble:** 
-  - Ensemble weights dynamically adjusted based on per-model accuracy
-  - Expected +2-3% F1 improvement per month for first 3 months
-
----
-
 ## Deployment Timeline
 
 | Week | Milestone | Expected F1 |
 |---|---|---|
-| **Week 1** | Deploy Approach 2 (NLI) - fast baseline | 0.72-0.78 |
-| **Week 2** | Optimize hypotheses, add Approach 1 (Snorkel) | 0.75-0.80 |
-| **Week 3** | Deploy ensemble, distill for speed | 0.82-0.87 |
-| **Month 1** | First user feedback integration | 0.83-0.88 |
-| **Month 3** | Mature system with continuous learning | 0.85-0.90 |
-
-**Result:** From zero labels to production-grade manipulation detection in 2 weeks, continuously improving to match supervised performance within 3 months. 🚀
+| **Day 1-3** | Deploy Approach 2 (NLI) - fast baseline | 0.72-0.78 |
+| **Day 4-10** | Develop & test Approach 1 (Snorkel LFs) | 0.75-0.80 |
+| **Day 11-14** | Deploy ensemble to production  **MEETS 2 WEEK DEADLINE** | 0.82-0.87 |
+| **Post Deployment (Month 1)** | First user feedback integration (continuous improvement) | 0.83-0.88 |
+| **Post Deployment (Month 3)** | Mature system with accumulated learning | 0.85-0.90 |

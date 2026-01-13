@@ -1,0 +1,122 @@
+[
+    {
+        "id": 1,
+        "category": "Clear Contradiction - Direct Opposites",
+        "difficulty": "easy",
+        "text": "This phone is incredibly fast and responsive. The performance is extremely slow and laggy. Perfect for gaming and multitasking.",
+        "has_contradiction": true,
+        "notes": "Direct opposite: fast vs slow"
+    },
+    {
+        "id": 2,
+        "category": "Subtle Contradiction - Implicit",
+        "difficulty": "medium",
+        "text": "Built with premium materials and exceptional craftsmanship. Fell apart after two days of normal use. The build quality exceeded my expectations.",
+        "has_contradiction": true,
+        "notes": "Implicit: premium/exceptional vs fell apart"
+    },
+    {
+        "id": 3,
+        "category": "Non-Contradiction - Different Aspects",
+        "difficulty": "hard",
+        "text": "The screen quality is stunning and crystal clear. Battery life is disappointing and drains quickly. Overall a decent mid-range option.",
+        "has_contradiction": false,
+        "notes": "Different entities (screen vs battery) - should NOT flag"
+    },
+    {
+        "id": 4,
+        "category": "Non-Contradiction - Mixed Sentiment",
+        "difficulty": "hard",
+        "text": "I love the sleek design and premium feel. I hate how heavy it is to carry around. The aesthetics are top-notch.",
+        "has_contradiction": false,
+        "notes": "Mixed sentiment about different aspects (design vs weight)"
+    },
+    {
+        "id": 5,
+        "category": "Clear Contradiction - Negation Pattern",
+        "difficulty": "easy",
+        "text": "This case has never cracked or shown any damage. I dropped it once and it shattered into pieces. Very protective and durable.",
+        "has_contradiction": true,
+        "notes": "Never damaged vs shattered"
+    },
+    {
+        "id": 6,
+        "category": "Non-Contradiction - Temporal Progress",
+        "difficulty": "medium",
+        "text": "Initially the app was buggy and crashed frequently. After the latest update it runs smoothly. The developer really improved performance.",
+        "has_contradiction": false,
+        "notes": "Temporal update - before vs after improvement"
+    },
+    {
+        "id": 7,
+        "category": "Subtle Contradiction - Conditional",
+        "difficulty": "medium",
+        "text": "The wireless connection works perfectly if you stay within 10 feet. Connectivity is terrible and drops constantly. Great range for a Bluetooth device.",
+        "has_contradiction": true,
+        "notes": "Works perfectly vs terrible connectivity"
+    },
+    {
+        "id": 8,
+        "category": "Clear Contradiction - Numeric Conflict",
+        "difficulty": "easy",
+        "text": "Setup took only 5 minutes and was super quick. I spent 3 hours trying to configure it. Installation is straightforward and easy.",
+        "has_contradiction": true,
+        "notes": "5 minutes vs 3 hours (36x difference)"
+    },
+    {
+        "id": 9,
+        "category": "Non-Contradiction - Comparison",
+        "difficulty": "hard",
+        "text": "It's cheaper than the premium model but more expensive than the budget option. Performance is better than expected. Good value for money.",
+        "has_contradiction": false,
+        "notes": "Comparative statements - not contradictory"
+    },
+    {
+        "id": 10,
+        "category": "Subtle Contradiction - Hedging",
+        "difficulty": "hard",
+        "text": "It mostly works well except when you need it most. The reliability is perfect and I've never had issues. Sometimes it glitches.",
+        "has_contradiction": true,
+        "notes": "Perfect reliability vs except when needed/sometimes glitches"
+    },
+    {
+        "id": 11,
+        "category": "Non-Contradiction - Qualified Praise",
+        "difficulty": "medium",
+        "text": "For the price, you can't expect studio-quality sound. The audio is decent enough for casual listening. Not audiophile grade but acceptable.",
+        "has_contradiction": false,
+        "notes": "Qualified expectations - consistent messaging"
+    },
+    {
+        "id": 12,
+        "category": "Clear Contradiction - Direct Opposite Experience",
+        "difficulty": "easy",
+        "text": "Customer support was incredibly helpful and resolved everything quickly. The support team was useless and never responded. They went above and beyond.",
+        "has_contradiction": true,
+        "notes": "Helpful vs useless support"
+    },
+    {
+        "id": 13,
+        "category": "Non-Contradiction - Sarcasm Risk",
+        "difficulty": "hard",
+        "text": "Oh great, another product that actually works as advertised. I'm genuinely impressed with the quality. Exceeded my expectations completely.",
+        "has_contradiction": false,
+        "notes": "Could be sarcasm but context suggests genuine - NOT contradictory"
+    },
+    {
+        "id": 14,
+        "category": "Subtle Contradiction - Size/Dimension",
+        "difficulty": "medium",
+        "text": "Compact and fits easily in my pocket. It's too bulky to carry comfortably. Perfect portable size for travel.",
+        "has_contradiction": true,
+        "notes": "Compact/pocket-sized vs too bulky"
+    },
+    {
+        "id": 15,
+        "category": "Non-Contradiction - Multiple Products",
+        "difficulty": "hard",
+        "text": "I ordered two units. The first one works flawlessly. The second one arrived defective. Quality control seems inconsistent.",
+        "has_contradiction": false,
+        "notes": "Two different items - not a contradiction about single product"
+    }
+]

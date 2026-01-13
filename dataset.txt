@@ -1,0 +1,50 @@
+[
+    {
+        "id": 1,
+        "text": "This laptop is incredibly fast. Boot time is under 10 seconds. However, I find myself waiting 5 minutes just to open Chrome. The performance is unmatched in this price range.",
+        "has_contradiction": true,
+        "contradiction_spans": [[0, 50], [51, 110]]
+    },
+    {
+        "id": 2,
+        "text": "The camera quality is stunning in daylight. Night mode works well too. I've taken beautiful photos at my daughter's evening recital. Great for any lighting condition.",
+        "has_contradiction": false,
+        "contradiction_spans": []
+    },
+    {
+        "id": 3,
+        "text": "I've never had a phone this durable. Dropped it multiple times with no damage. The screen cracked on the first drop though. Build quality is exceptional.",
+        "has_contradiction": true,
+        "contradiction_spans": [[0, 70], [71, 115]]
+    },
+    {
+        "id": 4,
+        "text": "Customer service was unhelpful and rude. They resolved my issue within minutes and even gave me a discount. Worst support experience I've ever had.",
+        "has_contradiction": true,
+        "contradiction_spans": [[0, 40], [41, 110]]
+    },
+    {
+        "id": 5,
+        "text": "The noise cancellation is mediocre at best. I can still hear my coworkers clearly. But honestly, for the price, you can't expect studio-quality isolation.",
+        "has_contradiction": false,
+        "contradiction_spans": []
+    },
+    {
+        "id": 6,
+        "text": "Shipping was lightning fast - arrived in 2 days. The three-week wait was worth it though. Amazon Prime really delivers.",
+        "has_contradiction": true,
+        "contradiction_spans": [[0, 45], [46, 85]]
+    },
+    {
+        "id": 7,
+        "text": "This blender is whisper quiet. My baby sleeps right through it. The noise is so loud I have to wear ear protection. Perfect for early morning smoothies.",
+        "has_contradiction": true,
+        "contradiction_spans": [[0, 60], [61, 115]]
+    },
+    {
+        "id": 8,
+        "text": "Not the cheapest option, but definitely worth the premium price. The quality justifies the cost. You get what you pay for with this brand.",
+        "has_contradiction": false,
+        "contradiction_spans": []
+    }
+]

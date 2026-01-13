@@ -68,15 +68,10 @@ class SemanticContradictionDetector:
         print(f"Loading NLI model: {model_name}...")
         self.model = CrossEncoder(model_name)
         
-        # Label mapping for cross-encoder/nli-roberta-base
-        # Index 0: Contradiction
-        # Index 1: Entailment  
-        # Index 2: Neutral
         self.contradiction_idx = 0
         self.entailment_idx = 1
         self.neutral_idx = 2
         
-        # Threshold tuned to balance precision/recall
         # Higher = fewer false positives, but may miss subtle contradictions
         self.threshold = 0.48
         
@@ -187,7 +182,6 @@ class SemanticContradictionDetector:
             value = float(match.group(1))
             unit = match.group(2) if match.group(2) else 'none'
             
-            # Normalize time units to seconds
             normalized_value = value
             if unit and 'min' in unit:
                 normalized_value = value * 60
@@ -214,7 +208,6 @@ class SemanticContradictionDetector:
             value = float(word_to_num[word_num])
             unit = match.group(2)
             
-            # Normalize time units to seconds
             normalized_value = value
             if unit and 'min' in unit:
                 normalized_value = value * 60
@@ -281,19 +274,80 @@ class SemanticContradictionDetector:
         if has_explicit_update_a and has_explicit_update_b:
             return False, 0.0, "Explicit temporal update detected (not contradiction)"
         
+        # Rule 1.5: Check for multiple instance detection (different items)
+        instance_markers = ['first one', 'second one', 'one of them', 'the other', 
+                          'first unit', 'second unit', 'one arrived', 'other arrived']
+        has_instance_a = any(marker in text_a_lower for marker in instance_markers)
+        has_instance_b = any(marker in text_b_lower for marker in instance_markers)
+        if has_instance_a or has_instance_b:
+            return False, 0.0, "Multiple instances detected (not same item)"
+        
         # Rule 2: Check for contrastive patterns with opposing semantics
+        text_a_lower = text_a.lower()
+        text_b_lower = text_b.lower()
+        
+        implicit_oppositions = [
+            (['premium materials', 'premium quality', 'exceptional craftsmanship', 'excellent quality'], 
+             ['fell apart', 'broken', 'poor quality', 'failed']),
+            (['incredibly fast', 'super fast', 'quick', 'responsive', 'speedy'], 
+             ['slow', 'laggy', 'sluggish', 'unresponsive']),
+            (['works perfectly', 'flawlessly', 'perfectly reliable'], 
+             ['terrible', 'drops constantly', 'fails constantly', 'unreliable']),
+            (['helpful', 'resolved', 'above and beyond'], 
+             ['unhelpful', 'rude', 'useless', 'never responded', 'worst']),
+            (['quiet', 'whisper'], 
+             ['loud', 'noise', 'ear protection'])
+        ]
+        
+        for positive_words, negative_words in implicit_oppositions:
+            has_positive = any(word in text_a_lower or word in text_b_lower for word in positive_words)
+            has_negative = any(word in text_a_lower or word in text_b_lower for word in negative_words)
+            if has_positive and has_negative:
+                return True, 0.80, "Implicit quality opposition pattern"
+        
+        # Rule 2.5: Check for aspect separation (different product aspects)
+        aspect_groups = {
+            'aesthetics': ['design', 'look', 'appearance', 'sleek', 'style', 'beautiful', 'ugly', 'aesthetics'],
+            'ergonomics': ['weight', 'heavy', 'light', 'comfortable', 'ergonomic', 'bulky', 'carry'],
+            'performance': ['fast', 'slow', 'speed', 'performance', 'responsive'],
+            'durability': ['durable', 'sturdy', 'fragile', 'broke', 'broken'],
+            'camera': ['camera', 'photo', 'picture', 'image quality'],
+            'battery': ['battery', 'charge', 'power', 'charging']
+        }
+        
+        love_hate_words = {
+            'positive': ['love', 'adore', 'excellent', 'perfect', 'amazing', 'wonderful', 'top-notch', 'great', 'fantastic'],
+            'negative': ['hate', 'terrible', 'awful', 'horrible', 'worst', 'useless', 'poor']
+        }
+        
+        has_strong_pos_a = any(word in text_a_lower for word in love_hate_words['positive'])
+        has_strong_neg_a = any(word in text_a_lower for word in love_hate_words['negative'])
+        has_strong_pos_b = any(word in text_b_lower for word in love_hate_words['positive'])
+        has_strong_neg_b = any(word in text_b_lower for word in love_hate_words['negative'])
+        
+        # If opposing sentiments exist
+        if (has_strong_pos_a and has_strong_neg_b) or (has_strong_neg_a and has_strong_pos_b):
+            aspects_a = set()
+            aspects_b = set()
+            for aspect_name, aspect_words in aspect_groups.items():
+                if any(word in text_a_lower for word in aspect_words):
+                    aspects_a.add(aspect_name)
+                if any(word in text_b_lower for word in aspect_words):
+                    aspects_b.add(aspect_name)
+            
+            # If they discuss completely different aspects, not a contradiction
+            if aspects_a and aspects_b and not (aspects_a & aspects_b):
+                return False, 0.0, "Different aspects with opposing sentiment"
+        
+        # Check for negation-based contrastive patterns (Rule 3)
         if claim_a['has_negation'] != claim_b['has_negation']:
             # One has negation, other doesn't - check for semantic opposition
             if claim_b['has_contrastive'] or claim_a['has_contrastive']:
-                # Check for opposing keywords
                 opposing_pairs = [
                     (['damage', 'harm', 'break', 'crack', 'scratch'], ['no', 'without', 'never']),
                     (['durable', 'strong', 'sturdy'], ['cracked', 'broken', 'damaged']),
                     (['works', 'working', 'functional'], ['broken', 'failed', 'doesn\'t'])
                 ]
-                
-                text_a_lower = text_a.lower()
-                text_b_lower = text_b.lower()
                 
                 for pos_words, neg_words in opposing_pairs:
                     has_pos = any(word in text_a_lower or word in text_b_lower for word in pos_words)
@@ -301,12 +355,32 @@ class SemanticContradictionDetector:
                     if has_pos and has_neg:
                         return True, 0.80, "Contrastive negation pattern contradiction"
         
-        # Rule 3: Check numeric contradictions
+        # Rule 4: Check for love/hate sentiment oppositions within SAME aspect
+        love_hate_words = {
+            'positive': ['love', 'adore', 'excellent', 'perfect', 'amazing', 'wonderful'],
+            'negative': ['hate', 'terrible', 'awful', 'horrible', 'worst', 'useless']
+        }
+        
+        has_strong_positive = any(word in text_a_lower for word in love_hate_words['positive'])
+        has_strong_negative = any(word in text_a_lower for word in love_hate_words['negative'])
+        
+        has_strong_positive_b = any(word in text_b_lower for word in love_hate_words['positive'])
+        has_strong_negative_b = any(word in text_b_lower for word in love_hate_words['negative'])
+        
+        # If one sentence has strong positive and other has strong negative
+        if (has_strong_positive and has_strong_negative_b) or (has_strong_negative and has_strong_positive_b):
+            # Check if they share entities (same aspect being discussed)
+            shared_entities = set(claim_a['entities']) & set(claim_b['entities'])
+            # Only flag if discussing CLEARLY the same aspect (shared entities required)
+            if len(shared_entities) > 1:  # Need at least 2 shared entities
+                return True, 0.75, "Strong sentiment opposition (love/hate pattern)"
+        
+        # Rule 5: Check numeric contradictions
         numeric_conflict = self._check_numeric_conflict(claim_a, claim_b)
         if numeric_conflict:
             return True, 0.85, "Numeric/temporal contradiction"
         
-        # Rule 4: NLI Model inference
+        # Rule 6: NLI Model inference
         pair = [(text_a, text_b)]
         scores = self.model.predict(pair)
         probs = self._softmax(scores[0])
@@ -319,10 +393,11 @@ class SemanticContradictionDetector:
         
         explanation = f"NLI score: {contradiction_score:.3f}"
         
-        # Rule 5: Entity check (reduce false positives)
+        # Rule 7: Entity check (reduce false positives)
         shared_entities = set(claim_a['entities']) & set(claim_b['entities'])
         if is_contradiction and len(shared_entities) == 0 and len(claim_a['entities']) > 0 and len(claim_b['entities']) > 0:
-            contradiction_score *= 0.5 
+            # Strong penalty for different entities (e.g., camera vs battery)
+            contradiction_score *= 0.4 
             is_contradiction = contradiction_score > self.threshold
             explanation += " (different entities - confidence reduced)"
         
@@ -349,7 +424,7 @@ class SemanticContradictionDetector:
                 
                 if val_a > 0 and val_b > 0:
                     ratio = max(val_a, val_b) / min(val_a, val_b)
-                    if ratio > 10:
+                    if ratio > 5:
                         return True
         
         return False

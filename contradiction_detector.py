@@ -100,22 +100,17 @@ class SemanticContradictionDetector:
         """
         # Basic cleanup
         text = text.strip()
-        text = text.replace('"', '"').replace('"', '"')  # Normalize quotes
+        text = text.replace('"', '"').replace('"', '"') 
         text = text.replace(''', "'").replace(''', "'")
         
         # Sentence segmentation
         sentences = nltk.sent_tokenize(text)
-        
-        # Filter and clean
+
         cleaned_sentences = []
         for sent in sentences:
-            # Remove extra whitespace
             sent = ' '.join(sent.split())
-            
-            # Skip very short sentences (likely not factual claims)
-            # e.g., "Great!", "Yes.", "Wow."
             word_count = len(sent.split())
-            if word_count >= 4:  # Minimum 4 words for a meaningful claim
+            if word_count >= 4: 
                 cleaned_sentences.append(sent)
         
         return cleaned_sentences
@@ -179,7 +174,6 @@ class SemanticContradictionDetector:
         """
         numbers = []
         
-        # Word to number mapping for text numbers
         word_to_num = {
             'one': 1, 'two': 2, 'three': 3, 'four': 4, 'five': 5,
             'six': 6, 'seven': 7, 'eight': 8, 'nine': 9, 'ten': 10
@@ -248,11 +242,8 @@ class SemanticContradictionDetector:
         "The camera is great. The battery is terrible."
         (Different entities = not a contradiction)
         """
-        # Simple noun extraction using POS tagging
         words = nltk.word_tokenize(text)
         pos_tags = nltk.pos_tag(words)
-        
-        # Extract nouns (NN, NNS, NNP, NNPS)
         entities = [word.lower() for word, pos in pos_tags 
                    if pos.startswith('NN')]
         
@@ -279,7 +270,6 @@ class SemanticContradictionDetector:
         text_b = claim_b['text']
         
         # Rule 1: Skip if both have temporal markers (likely an update)
-        # Example: "Initially 5 stars... Update: now 2 stars" = NOT contradiction
         explicit_updates = ['update:', 'edit:', 'revised:', 'correction:', 'initially', 'originally']
         text_a_lower = claim_a['text'].lower()
         text_b_lower = claim_b['text'].lower()
@@ -292,7 +282,6 @@ class SemanticContradictionDetector:
             return False, 0.0, "Explicit temporal update detected (not contradiction)"
         
         # Rule 2: Check for contrastive patterns with opposing semantics
-        # Example: "no damage" vs "cracked" with contrastive marker "though"
         if claim_a['has_negation'] != claim_b['has_negation']:
             # One has negation, other doesn't - check for semantic opposition
             if claim_b['has_contrastive'] or claim_a['has_contrastive']:
@@ -313,7 +302,6 @@ class SemanticContradictionDetector:
                         return True, 0.80, "Contrastive negation pattern contradiction"
         
         # Rule 3: Check numeric contradictions
-        # Example: "10 seconds" vs "5 minutes" for similar tasks
         numeric_conflict = self._check_numeric_conflict(claim_a, claim_b)
         if numeric_conflict:
             return True, 0.85, "Numeric/temporal contradiction"
@@ -325,10 +313,6 @@ class SemanticContradictionDetector:
         
         contradiction_score = probs[self.contradiction_idx]
         entailment_score = probs[self.entailment_idx]
-        
-        # Decision logic:
-        # - Contradiction must be the highest score
-        # - Must exceed threshold
         is_contradiction = (contradiction_score > entailment_score and 
                           contradiction_score > probs[self.neutral_idx] and
                           contradiction_score > self.threshold)
@@ -336,11 +320,9 @@ class SemanticContradictionDetector:
         explanation = f"NLI score: {contradiction_score:.3f}"
         
         # Rule 5: Entity check (reduce false positives)
-        # If sentences talk about different entities, less likely to be contradiction
         shared_entities = set(claim_a['entities']) & set(claim_b['entities'])
         if is_contradiction and len(shared_entities) == 0 and len(claim_a['entities']) > 0 and len(claim_b['entities']) > 0:
-            # Downgrade confidence significantly if talking about completely different things
-            contradiction_score *= 0.5  # Strong penalty for different entities
+            contradiction_score *= 0.5 
             is_contradiction = contradiction_score > self.threshold
             explanation += " (different entities - confidence reduced)"
         
@@ -360,17 +342,13 @@ class SemanticContradictionDetector:
         
         if not nums_a or not nums_b:
             return False
-        
-        # Check if normalized values differ significantly (>10x difference)
         for num_a in nums_a:
             for num_b in nums_b:
                 val_a = num_a['normalized_value']
                 val_b = num_b['normalized_value']
                 
-                # If same unit context and vastly different values
                 if val_a > 0 and val_b > 0:
                     ratio = max(val_a, val_b) / min(val_a, val_b)
-                    # 10x difference threshold (e.g., 2 days vs 3 weeks = 10.5x)
                     if ratio > 10:
                         return True
         
@@ -433,7 +411,7 @@ class SemanticContradictionDetector:
         if has_contradiction:
             explanation = (f"Found {len(contradictions)} contradiction(s). "
                          f"Highest confidence: {max_confidence:.3f}. "
-                         f"Details: {'; '.join(explanations[:2])}")  # Show top 2
+                         f"Details: {'; '.join(explanations[:2])}")
         else:
             explanation = "No logical contradictions detected."
         

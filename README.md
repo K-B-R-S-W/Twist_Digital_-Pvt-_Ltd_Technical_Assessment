@@ -48,6 +48,9 @@ The original `dataset.txt` file contained **Python-style boolean values** (`True
 - **Architecture:** Implements the Multi-branch ensemble architecture designed in Part 1.
 - **Optimization:** Includes production-ready strategies for latency (<50ms) and adversarial defense.
 
+## Note on Implementation Logic
+The code snippets provided in the responses below (Parts 3 & 4) are **simplified logic demonstrations**. They are intended to explicitly illustrate the specific libraries (Snorkel, SetFit, ONNX) and algorithmic strategies proposed, rather than serving as deployable production modules.
+
 ## 📬 Contact
 Ravindu Sankalpa  
 [k.b.ravindusankalpaac@gmail.com]

@@ -1,4 +1,4 @@
-# Twist_Digital_-Pvt-_Ltd
+# Twist_Digital
 # Deceptive Review Detection - Technical Assessment
 
 ## 📌 Overview
